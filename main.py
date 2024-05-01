@@ -111,27 +111,30 @@ def main():
 def predict():
     try:
         img_data = request.form.get("myImage").replace("data:image/png;base64,", "")
-        img_bytes = base64.b64decode(img_data)
-        img = Image.open(io.BytesIO(img_bytes))
+        img = Image.open(io.BytesIO(base64.b64decode(img_data)))
+        # Redimensionar la imagen a 28x28 y agregar una dimensión de canal de color
+        # Normalizar los valores de píxeles
+        img = img.split()[3]
 
-        # Redimensionar la imagen a 28x28
-        img = img.resize((28, 28))
+        size = (28, 28)
 
-        # Convertir la imagen a numpy array y normalizar los valores de píxeles
         img = np.array(img) / 255.0
+        img = resize(img, size)
 
-        # Agregar una dimensión para el lote y el canal
-        if img.ndim == 3 and img.shape[-1] == 3:
-            img = np.expand_dims(img[:, :, 0], axis=-1)
-        # Cargar el modelo y realizar la predicción
+        # Agregar una dimensión de lote
+        img = np.expand_dims(img, axis=0)
+        # img = np.expand_dims(img, axis=-1)
+        # Cargar el modelo y hacer la predicción
         model = load_model("modelo.h5")
         prediction = model.predict(img)
 
         # Obtener la clase predicha
-        predicted_class = int(np.argmax(prediction))
-
+        predicted_symbol = np.argmax(prediction)
+        int_to_symbol = {0: "♥", 1: "♦", 2: "♣", 3: "♠"}
+        name_symbol = int_to_symbol[predicted_symbol]
+        print(name_symbol)
         # Devolver la predicción como una respuesta JSON
-        return jsonify({"predicted_class": predicted_class})
+        return jsonify({"predicted_symbol": name_symbol})
 
     except Exception as e:
         print("Error occurred:", e)
