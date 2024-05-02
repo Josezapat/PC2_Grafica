@@ -9,6 +9,9 @@ from tensorflow.keras.models import load_model
 
 app = Flask(__name__)
 
+# Cargar el modelo durante la inicialización de la aplicación Flask
+model = load_model("modelo.h5")
+
 main_html = """
 <html>
 <head></head>
@@ -20,10 +23,9 @@ main_html = """
   function InitThis() {
       ctx = document.getElementById('myCanvas').getContext("2d");
 
-      symbols_name = ["heart", "diamond", "club", "spade"]
       symbols = ["♥", "♦", "♣", "♠"];
       mensaje_symbols = symbols.join(",")      
-      document.getElementById('mensaje').innerHTML  = 'Dibuja uno de estos simbolos ' + mensaje_symbols;
+      document.getElementById('mensaje').innerHTML  = 'Dibuja uno de estos símbolos ' + mensaje_symbols;
 
       $('#myCanvas').mousedown(function (e) {
           mousePressed = true;
@@ -64,6 +66,7 @@ main_html = """
       ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
   }
 
+  //https://www.askingbox.com/tutorial/send-html5-canvas-as-image-to-server
   function prepareImg() {
      var canvas = document.getElementById('myCanvas');
      document.getElementById('myImage').value = canvas.toDataURL();
@@ -105,28 +108,26 @@ def predict():
     try:
         img_data = request.form.get("myImage").replace("data:image/png;base64,", "")
         img = Image.open(io.BytesIO(base64.b64decode(img_data)))
+        img = img.split()[3]  # Tomar solo la cuarta capa de la imagen RGBA
 
-        # Redimensionar la imagen y preprocesarla
         size = (28, 28)
-        img = img.convert("L")  # Convertir a escala de grises
-        img = np.array(img.resize(size)) / 255.0  # Redimensionar y normalizar
-        img = np.expand_dims(img, axis=(0, -1))  # Agregar dimensiones de lote y canal
+        img = np.array(img) / 255.0
+        img = resize(img, size)
+        img = np.expand_dims(img, axis=0)
 
-        # Cargar el modelo
-        model = load_model("modelo.h5")
-
-        # Hacer la predicción
+        # Hacer la predicción utilizando el modelo previamente cargado
         prediction = model.predict(img)
+        predicted_symbol = np.argmax(prediction)
 
-        # Obtener el símbolo predicho y los porcentajes de similitud
         int_to_symbol = {0: "♥", 1: "♦", 2: "♣", 3: "♠"}
-        predicted_symbol = int_to_symbol[np.argmax(prediction)]
+        name_symbol = int_to_symbol[predicted_symbol]
+
+        # Obtener los porcentajes de similitud para cada símbolo
         percentage_similarity = {symbol: f"{prob * 100:.2f}%" for symbol, prob in zip(int_to_symbol.values(), prediction[0])}
 
         # Formatear los resultados como JSON
-        results = {"predicted_symbol": predicted_symbol, "percentage_similarity": percentage_similarity}
+        results = {"El simbolo se parece a": name_symbol, "Porcentaje de similitud": percentage_similarity}
 
-        # Devolver la predicción como una respuesta JSON
         return jsonify(results)
 
     except Exception as e:
@@ -135,4 +136,4 @@ def predict():
 
 
 if __name__ == "__main__":
-    app.run(port=5001)
+    app.run()
