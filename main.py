@@ -15,6 +15,7 @@ model = load_model("modelo.h5")
 main_html = """
 <html>
 <head></head>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
 <script>
   var mousePressed = false;
   var lastX, lastY;
@@ -41,7 +42,7 @@ main_html = """
       $('#myCanvas').mouseup(function (e) {
           mousePressed = false;
       });
-  	    $('#myCanvas').mouseleave(function (e) {
+      $('#myCanvas').mouseleave(function (e) {
           mousePressed = false;
       });
   }
@@ -72,10 +73,12 @@ main_html = """
      document.getElementById('myImage').value = canvas.toDataURL();
   }
 
+  function showResults(results) {
+     document.getElementById('results').innerHTML = results;
+  }
+
 </script>
 <body onload="InitThis();">
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js" type="text/javascript"></script>
-    <script type="text/javascript" ></script>
     <div align="left">
       <img src="https://upload.wikimedia.org/wikipedia/commons/f/f7/Uni-logo_transparente_granate.png" width="300"/>
     </div>
@@ -87,7 +90,7 @@ main_html = """
         <button onclick="javascript:clearArea();return false;">Borrar</button>
     </div>
     <div align="center">
-      <form method="post" action="predict" onsubmit="javascript:prepareImg();"  enctype="multipart/form-data">
+      <form id="myForm" onsubmit="javascript:prepareImg(); return false;">
       <input id="myImage" name="myImage" type="hidden" value="">
       <input id="bt_upload" type="submit" value="Predecir">
       </form>
@@ -126,7 +129,7 @@ def predict():
         percentage_similarity = {symbol: f"{prob * 100:.2f}%" for symbol, prob in zip(int_to_symbol.values(), prediction[0])}
 
         # Formatear los resultados como JSON
-        results = {"El simbolo se parece a": name_symbol, "Porcentaje de similitud": percentage_similarity}
+        results = f"<p>El símbolo se parece a: {name_symbol}</p><p>Porcentaje de similitud: {percentage_similarity}</p>"
 
         return jsonify(results)
 
@@ -135,5 +138,6 @@ def predict():
         return redirect("/", code=302)
 
 
-if __name__ == "__main__":
-    app.run()
+# No ejecutar el servidor en el entorno local
+# if __name__ == "__main__":
+#     app.run()
