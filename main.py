@@ -4,7 +4,7 @@ import io
 import numpy as np
 from flask import Flask, jsonify, redirect, request
 from PIL import Image
-from skimage.transform import resize  # <--- resize
+from skimage.transform import resize
 from tensorflow.keras.models import load_model
 
 app = Flask(__name__)
@@ -17,15 +17,10 @@ main_html = """
   var lastX, lastY;
   var ctx;
 
-   function getRndInteger(min, max) {
-    return Math.floor(Math.random() * (max - min) ) + min;
-   }
-
   function InitThis() {
       ctx = document.getElementById('myCanvas').getContext("2d");
 
-
-      symbols_name = ["heart","diamond","club","spade"]
+      symbols_name = ["heart", "diamond", "club", "spade"]
       symbols = ["♥", "♦", "♣", "♠"];
       mensaje_symbols = symbols.join(",")      
       document.getElementById('mensaje').innerHTML  = 'Dibuja uno de estos simbolos ' + mensaje_symbols;
@@ -69,13 +64,10 @@ main_html = """
       ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
   }
 
-  //https://www.askingbox.com/tutorial/send-html5-canvas-as-image-to-server
   function prepareImg() {
      var canvas = document.getElementById('myCanvas');
      document.getElementById('myImage').value = canvas.toDataURL();
   }
-
-
 
 </script>
 <body onload="InitThis();">
@@ -96,6 +88,7 @@ main_html = """
       <input id="myImage" name="myImage" type="hidden" value="">
       <input id="bt_upload" type="submit" value="Predecir">
       </form>
+      <div id="results"></div>
     </div>
 </body>
 </html>
@@ -112,29 +105,29 @@ def predict():
     try:
         img_data = request.form.get("myImage").replace("data:image/png;base64,", "")
         img = Image.open(io.BytesIO(base64.b64decode(img_data)))
-        # Redimensionar la imagen a 28x28 y agregar una dimensión de canal de color
-        # Normalizar los valores de píxeles
-        img = img.split()[3]
 
+        # Redimensionar la imagen y preprocesarla
         size = (28, 28)
+        img = img.convert("L")  # Convertir a escala de grises
+        img = np.array(img.resize(size)) / 255.0  # Redimensionar y normalizar
+        img = np.expand_dims(img, axis=(0, -1))  # Agregar dimensiones de lote y canal
 
-        img = np.array(img) / 255.0
-        img = resize(img, size)
-
-        # Agregar una dimensión de lote
-        img = np.expand_dims(img, axis=0)
-        # img = np.expand_dims(img, axis=-1)
-        # Cargar el modelo y hacer la predicción
+        # Cargar el modelo
         model = load_model("modelo.h5")
+
+        # Hacer la predicción
         prediction = model.predict(img)
 
-        # Obtener la clase predicha
-        predicted_symbol = np.argmax(prediction)
+        # Obtener el símbolo predicho y los porcentajes de similitud
         int_to_symbol = {0: "♥", 1: "♦", 2: "♣", 3: "♠"}
-        name_symbol = int_to_symbol[predicted_symbol]
-        print(name_symbol)
+        predicted_symbol = int_to_symbol[np.argmax(prediction)]
+        percentage_similarity = {symbol: f"{prob * 100:.2f}%" for symbol, prob in zip(int_to_symbol.values(), prediction[0])}
+
+        # Formatear los resultados como JSON
+        results = {"predicted_symbol": predicted_symbol, "percentage_similarity": percentage_similarity}
+
         # Devolver la predicción como una respuesta JSON
-        return jsonify({"predicted_symbol": name_symbol})
+        return jsonify(results)
 
     except Exception as e:
         print("Error occurred:", e)
@@ -142,4 +135,4 @@ def predict():
 
 
 if __name__ == "__main__":
-    app.run()
+    app.run(port=5001)
