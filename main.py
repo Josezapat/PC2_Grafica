@@ -137,7 +137,5 @@ def predict():
         print("Error occurred:", e)
         return redirect("/", code=302)
 
-
-# No ejecutar el servidor en el entorno local
-# if __name__ == "__main__":
-#     app.run()
+if __name__ == "__main__":
+    app.run(port=3000)
